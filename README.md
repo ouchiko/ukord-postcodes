@@ -10,10 +10,10 @@ The directory structure is as follows. You'll most likely want to use the MysqlD
 
 Directory       | Description
 -------------   | --------------------------------------
-./definitions   | The district and ward data
-./MysqlDataSet  | The MySql files you should import
-./Generator     | The code used to generate the SQL files
-./PHPCoord      | The excellent PHPCoord utility
+./data          | The Mysql data files and schema
+./generate      | The code to generate the data
+
+There is also an additional data directory for the raw Ordnance Survey files.  I did not include this into the repo.
 
 ###Example query
 
