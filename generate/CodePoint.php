@@ -7,6 +7,8 @@
  * - spaceFill()
  * - loadPostcodeData()
  * - (()
+ * - loadStreetData()
+ * - (()
  * - loadAreaCodes()
  * - (()
  * - save()
@@ -21,7 +23,8 @@ class CodePoint {
     
     private $file_list = array(
         "areacodes" => "definitions/areacodes.tab",
-        "areas" => "definitions/areas.tab"
+        "areas" => "definitions/areas.tab",
+        "streets" => "../pcdata/OS_Locator2015_1_OPEN.csv"
     );
     
     public $postcode_reference = array(
@@ -37,9 +40,28 @@ class CodePoint {
         "admin_ward_code"
     );
     
+    public $street_references = array(
+        "name",
+        "classification",
+        "centx",
+        "centy",
+        "minx",
+        "maxx",
+        "miny",
+        "maxy",
+        "settlement",
+        "locality",
+        "cou_unit",
+        "localauth",
+        "til10k",
+        "tile25k",
+        "source"
+    );
+    
     public $areacodes = array();
     public $areas = array();
     public $postcodes = array();
+    public $streets = array();
     private $current_base = "null";
     
     /**
@@ -70,6 +92,7 @@ class CodePoint {
         if (file_exists($filename)) {
             $content = file_get_contents($filename);
             $data_rows = explode("\n", $content);
+            print "Loading " . count($data_rows) . " lines \n";
             foreach ($data_rows as $row) $callback($row);
         } 
         else {
@@ -90,11 +113,11 @@ class CodePoint {
             
             $reference = array();
             $parsed_array = str_getcsv($row, ",", '"');
-
+            
             foreach ($parsed_array as $id => $value) $reference[$this->postcode_reference[$id]] = $value;
-
+            
             if ($reference && isset($reference['easting'])) {
-            	$reference['postcode'] = str_replace(" ", "", $reference['postcode']);
+                $reference['postcode'] = str_replace(" ", "", $reference['postcode']);
                 $osref = new PHPCoord\OSRef($reference["easting"], $reference["northing"]);
                 $latlng = $osref->toLatLng();
                 $reference['latitude'] = $latlng->lat;
@@ -105,12 +128,65 @@ class CodePoint {
         };
         
         $files = $this->readDirectoryFiles("pcdata");
-
+        
         foreach ($files as $file) {
             $this->postcodes = array();
             $this->dataFileRead("pcdata/" . $file, $callback);
             $this->save($this->generateSql($this->postcodes, "CodePoint", "Postcodes") , "postcodes-" . str_replace(".csv", "", $file));
         }
+    }
+    
+    public function loadStreetData() {
+        $count = 0 ; 
+        $c = 0;
+        $callback = function ($row) {     
+            global $count, $c;       
+            ////:A1:396293:659888:393510:397400:657043:661468::Chirnside and District:Scottish Borders:Scottish Borders:NT95NE:NT95:Roads
+            $elements = explode(":", $row);
+            $named_data = array();
+            foreach ( $elements as $id => $element ) {
+               $named_data[$this->street_references[$id]] = $element;
+            }
+
+            $osref_cent = new PHPCoord\OSRef($named_data["centx"], $named_data["centx"]); $latlng_cent = $osref_cent->toLatLng();
+            $osref_min = new PHPCoord\OSRef($named_data["minx"], $named_data["miny"]); $latlng_min = $osref_min->toLatLng();
+            $osref_max = new PHPCoord\OSRef($named_data["maxx"], $named_data["maxy"]); $latlng_max = $osref_max->toLatLng();
+
+            $named_data['cent_lat'] = $latlng_cent -> lat;
+            $named_data['cent_lon'] = $latlng_cent -> lng;        
+            $named_data['min_lat'] = $latlng_min -> lat;
+            $named_data['min_lon'] = $latlng_min -> lng; 
+            $named_data['max_lat'] = $latlng_max -> lat;
+            $named_data['max_lon'] = $latlng_max -> lng; 
+
+            $count++;
+            $c++;
+
+            if ( $c == 100 ) {
+                print chr(8).chr(8).chr(8).chr(8).chr(8).chr(8).chr(8).chr(8).chr(8).chr(8).chr(8).chr(8);
+                print $count;
+                $c = 0;
+            }
+
+            $this -> streets[] = $named_data;
+
+   
+            
+
+            if ( count($this->streets) > 100000 ){
+
+                $this -> save(
+                    $this -> generateSql($this->streets, "CodePoint", "Streets"), "streets", true
+                );
+                $this -> streets = array();
+
+
+
+                print " SAVE";
+            }
+        };
+        
+        $this->dataFileRead($this->file_list['streets'], $callback);
     }
     
     /**
@@ -135,9 +211,9 @@ class CodePoint {
      * @param type $label
      * @return type
      */
-    public function save($file_cache, $label) {
+    public function save($file_cache, $label, $append = false) {
         print "Saving " . $label . "\n";
-        $fp = fopen("/tmp/sql-" . $label . "-" . time() . ".mysql.sql", "w");
+        $fp = fopen("/tmp/sql-" . $label . "-" . time() . ".mysql.sql", (($append) ? "a+" : "w"));
         if ($fp) {
             fputs($fp, $file_cache);
             fclose($fp);
@@ -178,9 +254,9 @@ class CodePoint {
         $query_cache = "";
         foreach ($blocks as $block) {
             $query_block = sprintf("INSERT INTO %s.%s SET ", $database, $table);
-
+            
             foreach ($block as $name => $value) $query_block.= sprintf("%s = '%s', ", $name, addslashes($value));
-
+            
             $query_block = preg_replace("/, $/", "", $query_block);
             $query_cache.= $query_block . ";\n";
         }
