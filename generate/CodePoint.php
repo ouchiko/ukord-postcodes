@@ -100,6 +100,11 @@ class CodePoint {
         }
     }
     
+    /**
+     * Space the postcode correctly.
+     * @param type $str 
+     * @return type
+     */
     private function spaceFill($str) {
         return substr($str, 0, strlen($str) - 3) . " " . substr($str, strlen($str) - 3, strlen($str));
     }
@@ -136,11 +141,16 @@ class CodePoint {
         }
     }
     
+    /**
+     * Load street data
+     * @return type
+     */
     public function loadStreetData() {
         $count = 0 ; 
-        $c = 0;
+        $internal_counter = 0;
+
         $callback = function ($row) {     
-            global $count, $c;       
+            global $count, $internal_counter;       
             ////:A1:396293:659888:393510:397400:657043:661468::Chirnside and District:Scottish Borders:Scottish Borders:NT95NE:NT95:Roads
             $elements = explode(":", $row);
             $named_data = array();
@@ -160,29 +170,24 @@ class CodePoint {
             $named_data['max_lon'] = $latlng_max -> lng; 
 
             $count++;
-            $c++;
+            $internal_counter++;
 
-            if ( $c == 100 ) {
+            if ( $internal_counter == 100 ) {
                 print chr(8).chr(8).chr(8).chr(8).chr(8).chr(8).chr(8).chr(8).chr(8).chr(8).chr(8).chr(8);
                 print $count;
-                $c = 0;
+                $internal_counter = 0;
             }
 
             $this -> streets[] = $named_data;
 
-   
-            
-
             if ( count($this->streets) > 100000 ){
 
                 $this -> save(
-                    $this -> generateSql($this->streets, "CodePoint", "Streets"), "streets", true
+                    $this -> generateSql($this->streets, "CodePoint", "Streets"), "streets", true, true
                 );
                 $this -> streets = array();
 
-
-
-                print " SAVE";
+                print " - Item Saved..";
             }
         };
         
@@ -211,9 +216,9 @@ class CodePoint {
      * @param type $label
      * @return type
      */
-    public function save($file_cache, $label, $append = false) {
+    public function save($file_cache, $label, $append = false, $notime = false) {
         print "Saving " . $label . "\n";
-        $fp = fopen("/tmp/sql-" . $label . "-" . time() . ".mysql.sql", (($append) ? "a+" : "w"));
+        $fp = fopen("/tmp/sql-" . $label . "-" . (!$notime?time():'') . ".mysql.sql", (($append) ? "a+" : "w"));
         if ($fp) {
             fputs($fp, $file_cache);
             fclose($fp);

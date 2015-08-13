@@ -1,20 +1,21 @@
 <?php
 
-	error_reporting(E_ALL);
-	ini_set("display_errors","on");
-	ini_set("html_errors","On");
+/**
+ * Generate street SQL statements from origin file
+ */
 
-	require_once "PHPCoord/OSRef.php";
-	require_once "PHPCoord/LatLng.php";
-	require_once "PHPCoord/RefEll.php";
-	require_once "CodePoint.php";
+/**
+ * Class and Function List:
+ * Function list:
+ * Classes list:
+ */
 
-	$codepoint = new CodePoint();
+require_once "PHPCoord/OSRef.php";
+require_once "PHPCoord/LatLng.php";
+require_once "PHPCoord/RefEll.php";
+require_once "CodePoint.php";
 
-	$codepoint -> loadStreetData();
-	
+$codepoint = new CodePoint();
 
-	
-	
-	
+$codepoint->loadStreetData();
 ?>
